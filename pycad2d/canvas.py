@@ -1053,7 +1053,7 @@ class CadCanvas(QWidget):
         s=s.replace(" ",""); rel=s.startswith("@")
         if rel:
             s=s[1:]; base=base or self.last_point
-        plane=self.effective_work_plane(self._view_at(self.mouse)[0]) if self._uses_3d_input() else None
+        plane=self.work_plane(self._view_at(self.mouse)[0]) if self._uses_3d_input() else None
         try:
             if "<" in s:
                 d,a=s.split("<",1); d=float(d); a=float(a)

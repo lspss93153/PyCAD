@@ -2037,7 +2037,8 @@ def PYRAMID(c):
 
 def TORUS(c):
     cen=yield pt("指定圓環中心點")
-    if not is_pt(cen):return
+    cen=_p3(cen)
+    if cen is None:return
     R=yield num("指定主半徑",default=15.0)
     if not isinstance(R,(int,float)) or R<=0:return
     r=yield num("指定管半徑",default=max(1.0,float(R)/4))

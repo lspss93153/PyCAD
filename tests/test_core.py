@@ -154,7 +154,7 @@ def test_modify():
     run(c, "CHA", "D", "5", "8", (40, 0), (0, 40))
     ok(len(c.doc.entities) == 3, "chamfer")
     # array / explode / join
-    run(c, "E", "ALL", "")
+    run(c, "E")
     run(c, "C", "0,0", "5")
     run(c, "AR", "ALL", "", "R", "2", "3", "20", "20")
     ok(len(c.doc.entities) == 1 and isinstance(c.doc.entities[0], Array) and c.doc.entities[0].rows == 2 and c.doc.entities[0].cols == 3, "rect associative array")
@@ -162,7 +162,7 @@ def test_modify():
     run(c, "C", "50,0", "5")
     run(c, "AR", "ALL", "", "PO", "0,0", "8", "360", "Y")
     ok(len(c.doc.entities) == 1 and isinstance(c.doc.entities[0], Array) and c.doc.entities[0].count == 8, "polar associative array")
-    run(c, "E", "ALL", "")
+    run(c, "E")
     run(c, "REC", "0,0", "10,10")
     run(c, "X", "ALL", "")
     ok(len(c.doc.entities) == 4 and all(isinstance(e, Line) for e in c.doc.entities), "explode")
