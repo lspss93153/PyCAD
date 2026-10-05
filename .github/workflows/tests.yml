@@ -4,28 +4,46 @@ on:
   push:
   pull_request:
 
-permissions:
-  contents: read
-
 jobs:
   core-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
     strategy:
       matrix:
-        python-version: ['3.10', '3.12']
+        python-version: ["3.10", "3.12"]
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install core dependencies
+
+      - name: Install Linux Qt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 \
+            libgl1 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libdbus-1-3
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
-          python -m pip install -r requirements.txt
+          pip install -r requirements.txt
+          pip install pytest
+
       - name: Compile
-        run: python -m compileall -q main.py pycad2d tests
+        run: |
+          python -m compileall -q .
+
       - name: Test
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest -q
+        run: |
+          python -m pytest -q
