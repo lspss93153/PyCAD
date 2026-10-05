@@ -1,0 +1,37 @@
+name: Bug report
+description: 回報可重現的 PyCAD 問題
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 問題描述
+      description: 發生了什麼？你原本期待什麼？
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PyCAD 版本
+      placeholder: v0.6.9.4
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 作業系統
+      placeholder: Linux Mint 22.x XFCE / Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 錯誤訊息 / 截圖 / 測試檔
+      description: 請移除私人資料後再上傳。

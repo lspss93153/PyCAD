@@ -1,0 +1,5 @@
+numpy>=1.26
+cadquery>=2.4
+trimesh>=4.4
+networkx>=3.2
+pycollada>=0.8

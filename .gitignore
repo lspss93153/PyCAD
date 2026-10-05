@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build / package outputs
+build/
+dist/
+*.egg-info/
+*.deb
+*.AppImage
+*.tar.gz
+*.zip
+
+# Local CAD files / temporary exports
+*.bak
+*.tmp
+~$*

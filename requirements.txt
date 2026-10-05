@@ -1,0 +1,8 @@
+PySide6>=6.7
+# 建議安裝：有 ezdxf 才能匯出 AutoCAD 2010 DXF（真正的標註、橢圓、填充線物件）；沒有的話只能匯出 R12 DXF
+ezdxf>=1.1
+
+# STEP 匯出為選用功能；安裝方式見 requirements_3d.txt
+
+# Robust closed-polyline OFFSET cleanup / self-intersection handling
+shapely>=2.0
