@@ -10,7 +10,6 @@ PyCAD 是一個以 Python / PySide6 開發的獨立 2D/3D CAD 桌面應用程式
 
 - 專案正式採用 **GNU General Public License v3.0 only (GPL-3.0-only)**。
 - 加入 GitHub 公開專案需要的授權、第三方套件聲明、貢獻指南、安全回報方式與 CI。
-- 移除 README/UI 中不必要的第三方品牌仿製描述，檔案格式以 `DXF R2010`、`DXF R12`、`DWG` 等中性名稱呈現。
 - 保留 v0.6.9.3 的 Linux Mint / X11 / Wayland 主視窗 resize 修正，以及 Linux 滑鼠滾輪 / 觸控板 viewport zoom 修正。
 - 保留 3D Gizmo `TAB` 精確距離輸入、WorkPlane、Boolean、STEP/STL/OBJ 與大型模型 picking/LOD 改善。
 
