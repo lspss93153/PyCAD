@@ -21,9 +21,16 @@ CJK_FONT = "msjh.ttc"
 # ================================================================ .pycad
 def save_project(path, doc):
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(doc.to_json(), f, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(doc.to_json(), f, ensure_ascii=False, indent=1)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try: os.unlink(tmp)
+        except OSError: pass
+        raise
 
 
 def load_project(path):
@@ -1204,7 +1211,7 @@ def export_ply(path, doc):
             ids=[int(i) for i in f if 0<=int(i)<len(solid.vertices)]
             if len(ids)>=3: faces.append([base+i for i in ids])
     with open(path,'w',encoding='ascii') as f:
-        f.write('ply\nformat ascii 1.0\ncomment PyCAD v0.6.9.4\n')
+        f.write('ply\nformat ascii 1.0\ncomment PyCAD v0.6.9.5\n')
         f.write(f'element vertex {len(vertices)}\nproperty float x\nproperty float y\nproperty float z\n')
         f.write(f'element face {len(faces)}\nproperty list uchar int vertex_indices\nend_header\n')
         for v in vertices:f.write('%.12g %.12g %.12g\n'%v)
@@ -1252,6 +1259,8 @@ def export_3mf(path, doc):
 
 def export_gltf(path, doc):
     scene=_trimesh_scene(doc)
+    # glTF/GLB positions are metres. _trimesh_scene returns millimetres.
+    scene.apply_scale(0.001)
     ext=os.path.splitext(path)[1].lower()
     kind='glb' if ext=='.glb' else 'gltf'
     try:data=scene.export(file_type=kind)
@@ -1613,7 +1622,7 @@ def export_wrl(path, doc):
     if not solids: raise ValueError("圖面中沒有可匯出的 3D 實體。")
     scale=_to_mm(doc)
     with open(path,'w',encoding='utf-8') as f:
-        f.write('#VRML V2.0 utf8\nWorldInfo { title "PyCAD v0.6.9.4" }\n')
+        f.write('#VRML V2.0 utf8\nWorldInfo { title "PyCAD v0.6.9.5" }\n')
         for solid in solids:
             f.write('Shape { geometry IndexedFaceSet { solid TRUE coord Coordinate { point [\n')
             for x,y,z in solid.vertices: f.write(' %.12g %.12g %.12g,\n'%(x*scale,y*scale,z*scale))
@@ -1662,7 +1671,10 @@ def import_3d(path, doc=None):
     if ext=='.ply':return import_ply(path,scale)
     if ext=='.off':return import_off(path,scale)
     if ext in ('.step','.stp'):return import_step(path,scale)
-    if ext in ('.glb','.gltf','.3mf','.dae'):return _import_trimesh_scene(path,scale,ext[1:].upper())
+    if ext in ('.glb','.gltf'):
+        # glTF 2.0 asset coordinates are metres; document coords use INSUNITS.
+        return _import_trimesh_scene(path,scale*1000.0,ext[1:].upper())
+    if ext in ('.3mf','.dae'):return _import_trimesh_scene(path,scale,ext[1:].upper())
     if ext=='.amf':return import_amf(path,scale)
     if ext in ('.wrl','.vrml'):return import_wrl(path,scale)
     raise ValueError("尚未支援此 3D 格式："+ext)

@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QPointF, QRectF, Signal
 from PySide6.QtGui import QPainter, QPen, QColor, QBrush, QFont, QPolygonF, QPixmap, QFontMetricsF, QTransform
 from PySide6.QtWidgets import QWidget, QMenu
 from . import geometry as G
+from .i18n import tr
 from . import commands as C
 from .commands import Kw, Req
 from .model import Document, Hatch, Text, MText, Dim, Insert, XLine, Point, Polyline, Solid3D, fmt
@@ -951,7 +952,7 @@ class CadCanvas(QWidget):
         r = self.req
         if r is None:
             return ""
-        s = r.prompt
+        s = tr(r.prompt)
         if r.keywords:
             s += " [" + "/".join("%s(%s)" % (n, k) for k, n in r.keywords) + "]"
         d = self._default_text()
@@ -963,7 +964,7 @@ class CadCanvas(QWidget):
         r = self.req
         if r is None:
             return ""
-        s = html.escape(r.prompt)
+        s = html.escape(tr(r.prompt))
         if r.keywords:
             s += " [" + "/".join('<a href="%s" style="color:#6fb4ff;text-decoration:none;">%s(%s)</a>' %
                                  (k, html.escape(n), k) for k, n in r.keywords) + "]"
@@ -1053,7 +1054,7 @@ class CadCanvas(QWidget):
         s=s.replace(" ",""); rel=s.startswith("@")
         if rel:
             s=s[1:]; base=base or self.last_point
-        plane=self.work_plane(self._view_at(self.mouse)[0]) if self._uses_3d_input() else None
+        plane=self.effective_work_plane(self._view_at(self.mouse)[0]) if self._uses_3d_input() else None
         try:
             if "<" in s:
                 d,a=s.split("<",1); d=float(d); a=float(a)
@@ -1986,7 +1987,7 @@ class CadCanvas(QWidget):
         if not self.s.dyn or r is None:
             return
         x, y = self.mouse.x() + 20, self.mouse.y() + 24
-        text = r.prompt
+        text = tr(r.prompt)
         w, h = self._tip(p, text, x, y)
         if r.kind == "point" and r.base is not None:
             if isinstance(r.base, tuple) and len(r.base) >= 3 and isinstance(self.cur_pt, tuple) and len(self.cur_pt) >= 3:

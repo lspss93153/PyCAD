@@ -6,6 +6,7 @@
 """
 import math
 import uuid
+import copy
 from dataclasses import dataclass, field, fields, replace
 from . import geometry as G
 
@@ -1125,15 +1126,35 @@ class Solid3D(Entity):
         return (min(xs), min(ys), min(zs), max(xs), max(ys), max(zs))
 
     def transformed(self, m):
-        # 2D MOVE/ROTATE act in XY.  A uniform SCALE must also scale Z so a 3D solid
-        # does not become 20x20x10 after a 2x scale.  Exact BREP is invalidated by the
-        # generic affine fallback; dedicated 3D commands rebuild/preserve it.
+        # Keep display mesh and authoritative OCC geometry in sync.  Do not silently
+        # convert an analytic STEP/BREP solid into faceted STEP after a normal MOVE.
         sc, _rot, mirrored, uniform = G.m_info(m)
         zscale = sc if uniform and not mirrored else 1.0
         vs=[]
         for x,y,z in self.vertices:
             q=G.m_apply(m,(x,y));vs.append((q[0],q[1],z*zscale))
-        return self.clone(vertices=vs, brep_b64="")
+        brep = self.brep_b64
+        if brep:
+            if not uniform or sc < 1e-12:
+                raise ValueError("精確 BREP 不支援非等比例或零比例的 2D 變形；操作已取消。 / Non-uniform BREP transform refused.")
+            try:
+                from OCP.gp import gp_Trsf
+                from OCP.BRepBuilderAPI import BRepBuilderAPI_Transform
+                from .io_utils import _shape_from_brep_b64, _shape_to_brep_b64
+                from cadquery import Shape
+                shape = _shape_from_brep_b64(brep)
+                if shape is None:
+                    raise RuntimeError("CadQuery/OpenCascade unavailable")
+                tf = gp_Trsf()
+                a,b,c,d,tx,ty = map(float,m)
+                tf.SetValues(a,c,0.0,tx, b,d,0.0,ty, 0.0,0.0,zscale,0.0)
+                result = Shape.cast(BRepBuilderAPI_Transform(shape.wrapped,tf,True).Shape())
+                if result.isNull():
+                    raise RuntimeError("BREP transform returned null shape")
+                brep = _shape_to_brep_b64(result)
+            except Exception as ex:
+                raise ValueError("精確 BREP 變換失敗，未修改模型 / Exact BREP transform failed: " + str(ex)) from ex
+        return self.clone(vertices=vs, brep_b64=brep)
 
     def display_mesh(self, max_faces=50000):
         """Return a safe, bounded mesh for interactive display only.
@@ -1205,7 +1226,10 @@ class Solid3D(Entity):
             if sm is not None and len(sm.faces)>=4 and len(sm.faces)<=max(limit*2,limit+2000):
                 nv=[tuple(map(float,v[:3])) for v in sm.vertices]
                 nf=[tuple(map(int,f[:3])) for f in sm.faces]
-                data=(nv,nf,make_edges(nf));cache[key]=data;return data
+                # Never replace a sealed display mesh with a cracked approximation.
+                # Prefer correctness to an artificial face limit on mechanical solids.
+                if not m.is_watertight or _tm.Trimesh(vertices=nv,faces=nf,process=False).is_watertight:
+                    data=(nv,nf,make_edges(nf));cache[key]=data;return data
         except Exception:
             pass
 
@@ -1261,6 +1285,15 @@ class Solid3D(Entity):
             if 4<=len(nf)<=limit:best=cand;break
             divisions=max(5,int(divisions*0.72))
         data=best if best and best[1] else (verts,tris[:limit],make_edges(tris[:limit]))
+        # The cluster fallback can tear a closed surface. Avoid showing fake holes.
+        # A full mesh is slower, but its original topology remains intact.
+        try:
+            import trimesh as _tm
+            original=_tm.Trimesh(vertices=verts,faces=tris,process=False)
+            if original.is_watertight and not _tm.Trimesh(vertices=data[0],faces=data[1],process=False).is_watertight:
+                data=(verts,tris,make_edges(tris))
+        except (ImportError,ValueError,TypeError,IndexError):
+            pass
         cache[key]=data
         # Keep several LODs (normal display / highlight / interactive) without
         # allowing imported-model caches to grow without bound.
@@ -1549,12 +1582,12 @@ class Document:
 
     # ---- 復原
     def _state(self):
-        return (list(self.entities), {k: replace(v) for k, v in self.layers.items()}, dict(self.blocks),
+        return (list(self.entities), {k: replace(v) for k, v in self.layers.items()}, {k: copy.deepcopy(v) for k, v in self.blocks.items()},
                 self.current_layer, dict(self.vars))
 
     def _restore(self, st):
         self.entities, self.layers, self.blocks, self.current_layer, self.vars = \
-            list(st[0]), {k: replace(v) for k, v in st[1].items()}, dict(st[2]), st[3], dict(st[4])
+            list(st[0]), {k: replace(v) for k, v in st[1].items()}, {k: copy.deepcopy(v) for k, v in st[2].items()}, st[3], dict(st[4])
         self.block_rev += 1
 
     def push_undo(self):

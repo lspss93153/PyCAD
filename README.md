@@ -1,14 +1,18 @@
-# PyCAD v0.6.9.4
+# PyCAD v0.6.9.5
 
 PyCAD 是一個以 Python / PySide6 開發的獨立 2D/3D CAD 桌面應用程式，提供常見工程繪圖、指令列操作、DXF/DWG 工作流程、3D 基本體、STEP/STL/OBJ 等匯入匯出，以及 3D 精準定位與 Gizmo 操作。
 
 > **專案狀態：** Alpha / 個人開源專案。請在重要工作前保留原始檔與備份；目前不建議把它當作唯一的生產環境 CAD 工具。
 
-![PyCAD screenshot](docs/screenshot.png)
+> 下方截圖為較早版本的介面示例，並非 v0.6.9.5 實機畫面。
 
-## v0.6.9.4 公開版重點
+![PyCAD screenshot (older version)](docs/screenshot.png)
+
+## v0.6.9.5 公開版重點
 
 - 專案正式採用 **GNU General Public License v3.0 only (GPL-3.0-only)**。
+- 加入 GitHub 公開專案需要的授權、第三方套件聲明、貢獻指南、安全回報方式與 CI。
+- 移除 README/UI 中不必要的第三方品牌仿製描述，檔案格式以 `DXF R2010`、`DXF R12`、`DWG` 等中性名稱呈現。
 - 保留 v0.6.9.3 的 Linux Mint / X11 / Wayland 主視窗 resize 修正，以及 Linux 滑鼠滾輪 / 觸控板 viewport zoom 修正。
 - 保留 3D Gizmo `TAB` 精確距離輸入、WorkPlane、Boolean、STEP/STL/OBJ 與大型模型 picking/LOD 改善。
 
@@ -21,6 +25,11 @@ PyCAD 是一個以 Python / PySide6 開發的獨立 2D/3D CAD 桌面應用程式
 - **Linux**：針對 Linux Mint XFCE / X11 / Wayland 的主視窗縮放、Ribbon 最小寬度、平滑滾動與觸控板事件做過相容性修正。
 
 ## 安裝
+
+**v0.6.9.5 預備發行**：Linux `.deb` 可雙擊安裝，第一次啟動仍需連網安裝使用者相依套件；Windows 提供 ZIP 內的雙擊 CMD 安裝腳本（需要 Python 3.12／winget 與網路），尚未提供在本環境驗證過的 Windows EXE。主要 UI 可由 **語言 / Language** 選擇繁體中文或英文，部分子對話框尚未翻譯。
+
+完整步驟：[繁體中文／English 安裝手冊](docs/INSTALL_zh_TW_en.md)。
+
 
 ### Linux Mint / Ubuntu 類系統
 
@@ -88,4 +97,4 @@ DWG 支援若啟用，可能需要使用者另外安裝 ODA File Converter；該
 
 歡迎 Issue、錯誤回報、測試模型與 Pull Request。開始修改前請先閱讀 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
-完整歷史版本記錄位於 [`docs/changelog/`](docs/changelog/)。
+完整歷史版本記錄（包含 v0.6.9.5 變更與已知限制）位於 [`docs/changelog/`](docs/changelog/)。

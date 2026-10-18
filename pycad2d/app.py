@@ -3,13 +3,14 @@
 import os
 import sys
 from collections.abc import Sequence
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QSize, QTimer, QSettings
 from PySide6.QtGui import QAction, QKeySequence, QPainter
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox,
                                QDockWidget, QStatusBar, QLabel, QTabBar, QStackedWidget, QToolButton, QToolBar, QMenu,
                                QInputDialog, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QDialogButtonBox,
                                QSizePolicy, QComboBox)
 from . import __version__
+from . import i18n
 from . import commands as C
 from . import geometry as G
 from . import io_utils as IO
@@ -90,6 +91,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = Settings()
+        self.locale_settings = QSettings("PyCAD", "PyCAD")
+        i18n.set_language(self.locale_settings.value("language", "zh_TW"))
         self.last_command = None
         self.clip = None
         self.counter = 0
@@ -138,10 +141,14 @@ class MainWindow(QMainWindow):
         }
         self._build_central()
         self._build_ribbon()
+        self._workspace_tab_indices = {"2D": 0, "3D": next(i for i in range(self.ribbon.count()) if self.ribbon.tabText(i) == "3D 模型")}
+        self._three_d_tab_indices = {i for i in range(self.ribbon.count()) if self.ribbon.tabText(i) in {"3D 模型", "實體", "曲面", "網面", "視覺化"}}
         self._build_menu_and_toolbar()
         self._build_status()
         self._build_docks()
         self.add_document(Document())
+        self._init_language_menu()
+        self._apply_language()
         self._set_3d_ribbon_visible(False)
         self.canvas.set_workspace_3d(False)
         QTimer.singleShot(0, lambda: self.canvas.setFocus())
@@ -323,7 +330,7 @@ class MainWindow(QMainWindow):
         p = rb.panel(pg, "建立曲面 / 實體特徵")
         p.col([("EXTRUDE", "擠出"), ("REVOLVE", "旋轉"), ("SWEEP", "掃掠"), ("LOFT", "混成")])
         p = rb.panel(pg, "說明")
-        p.widgets([QLabel("v0.6.9.2：Precision Gizmo & Workflow Polish")])
+        p.widgets([QLabel("v0.6.9.5：Precision Gizmo & Workflow Polish")])
 
         pg = rb.page("網面")
         p = rb.panel(pg, "網格資料")
@@ -417,10 +424,11 @@ class MainWindow(QMainWindow):
         lab.setStyleSheet("color:#aeb7c2;")
         tb.addWidget(lab)
         self.workspace_combo = QComboBox()
-        self.workspace_combo.addItems(["製圖與註解", "3D 建模"])
+        self.workspace_combo.addItem("製圖與註解", "2D")
+        self.workspace_combo.addItem("3D 建模", "3D")
         self.workspace_combo.setFixedWidth(130)
         self.workspace_combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.workspace_combo.currentTextChanged.connect(self.on_workspace_changed)
+        self.workspace_combo.currentIndexChanged.connect(lambda _i: self.on_workspace_changed(self.workspace_combo.currentText()))
         tb.addWidget(self.workspace_combo)
         for w in tb.findChildren(QToolButton):
             w.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -450,21 +458,95 @@ class MainWindow(QMainWindow):
         a.triggered.connect(self.toggle_log)
         self.addAction(a)
 
+    def _init_language_menu(self):
+        """Language is an application preference, not saved inside drawings."""
+        menu = self.menuBar().addMenu("語言 / Language")
+        for code, title in (("zh_TW", "繁體中文"), ("en", "English")):
+            action = menu.addAction(title)
+            action.setCheckable(True)
+            action.setData(code)
+            action.triggered.connect(lambda _checked=False, loc=code: self._change_language(loc))
+        self._lang_menu = menu
+        self._language_actions = menu.actions()
+
+    def _change_language(self, code):
+        i18n.set_language(code)
+        self.locale_settings.setValue("language", code)
+        self._apply_language()
+        self.cmdline.append("Language: English" if code == "en" else "語言：繁體中文")
+
+    def _apply_language(self):
+        """Retext visible widgets without reconstructing drawings or interrupting CAD state."""
+        from PySide6.QtWidgets import QTabWidget, QTabBar, QAbstractButton, QGroupBox
+        def translate_property(obj, prop, getter, setter):
+            key = "_pycad_zh_" + prop
+            original = obj.property(key)
+            if original is None:
+                original = getter()
+                obj.setProperty(key, original)
+            setter(i18n.tr(original))
+        translate_property(self._lang_menu, "title", self._lang_menu.title, self._lang_menu.setTitle)
+        for action in self.findChildren(QAction):
+            if action not in self._language_actions:
+                translate_property(action, "text", action.text, action.setText)
+                if action.toolTip():
+                    translate_property(action, "tip", action.toolTip, action.setToolTip)
+        for widget in self.findChildren(QWidget):
+            if isinstance(widget, QTabWidget):
+                for n in range(widget.count()):
+                    tab = widget.widget(n)
+                    if tab is None: continue
+                    key = "_pycad_tab_" + str(n)
+                    original = widget.property(key)
+                    if original is None:
+                        original = widget.tabText(n)
+                        widget.setProperty(key, original)
+                    widget.setTabText(n, i18n.tr(original))
+            if isinstance(widget, QComboBox):
+                prior_block = widget.blockSignals(True) if widget is self.workspace_combo else False
+                for n in range(widget.count()):
+                    if widget is not self.workspace_combo: continue
+                    key = "_pycad_combo_" + str(n)
+                    original = widget.property(key)
+                    if original is None:
+                        original = widget.itemText(n)
+                        widget.setProperty(key, original)
+                    widget.setItemText(n, i18n.tr(original))
+                if widget is self.workspace_combo:
+                    widget.blockSignals(prior_block)
+            if isinstance(widget, QAbstractButton):
+                translate_property(widget, "text", widget.text, widget.setText)
+                if widget.toolTip():
+                    translate_property(widget, "tooltip", widget.toolTip, widget.setToolTip)
+            elif isinstance(widget, QLabel):
+                if widget.text() and "<" not in widget.text():
+                    translate_property(widget, "text", widget.text, widget.setText)
+            elif isinstance(widget, QGroupBox):
+                translate_property(widget, "title", widget.title, widget.setTitle)
+            elif isinstance(widget, (QDockWidget, QToolBar)):
+                translate_property(widget, "title", widget.windowTitle, widget.setWindowTitle)
+        for action in self._language_actions:
+            action.setChecked(action.data() == i18n.language())
+        if hasattr(self, "view_status"):
+            view_labels = {"TOP":"上視", "BOTTOM":"下視", "FRONT":"前視", "BACK":"後視", "LEFT":"左視", "RIGHT":"右視",
+                           "SEISO":"東南等角", "SWISO":"西南等角", "NEISO":"東北等角", "NWISO":"西北等角"}
+            self.view_status.setText(i18n.tr(view_labels.get(getattr(self,"_last_view_name","TOP"),"上視")))
+
     def set_view(self, name):
+        self._last_view_name = name
         self.canvas.set_view_orientation(name, fit=True)
         if hasattr(self, "view_status"):
             labels = {"TOP":"上視", "BOTTOM":"下視", "FRONT":"前視", "BACK":"後視", "LEFT":"左視", "RIGHT":"右視",
                       "SEISO":"東南等角", "SWISO":"西南等角", "NEISO":"東北等角", "NWISO":"西北等角"}
-            self.view_status.setText(labels.get(name, name))
+            self.view_status.setText(i18n.tr(labels.get(name, name)))
 
     def _set_3d_ribbon_visible(self, visible):
-        three_d_tabs = {"3D 模型", "實體", "曲面", "網面", "視覺化"}
         for i in range(self.ribbon.count()):
-            if self.ribbon.tabText(i) in three_d_tabs:
+            if i in self._three_d_tab_indices:
                 self.ribbon.setTabVisible(i, bool(visible))
 
     def on_workspace_changed(self, text):
-        is3d = text == "3D 建模"
+        is3d = self.workspace_combo.currentData() == "3D"
         self._set_3d_ribbon_visible(is3d)
         self.canvas.set_workspace_3d(is3d)
         if is3d:
@@ -472,20 +554,20 @@ class MainWindow(QMainWindow):
             self.set_view("SEISO")
             self.canvas.set_visual_style("3DWIREFRAME")
             for i in range(self.ribbon.count()):
-                if self.ribbon.tabText(i) == "3D 模型":
+                if i == self._workspace_tab_indices["3D"]:
                     self.ribbon.setCurrentIndex(i); break
-            self.cmdline.append("工作區：3D 建模（v0.6.9.2）｜Shift+中鍵=3D Orbit｜滾輪=游標中心縮放")
+            self.cmdline.append("工作區：3D 建模（v0.6.9.5）｜Shift+中鍵=3D Orbit｜滾輪=游標中心縮放")
         else:
             # Drafting workspace never exposes the 3D modelling ribbon.
             self.set_view("TOP")
             self.canvas.set_visual_style("2DWIREFRAME")
             for i in range(self.ribbon.count()):
-                if self.ribbon.tabText(i) == "常用":
+                if i == self._workspace_tab_indices["2D"]:
                     self.ribbon.setCurrentIndex(i); break
             self.cmdline.append("工作區：製圖與註解")
 
     def ucs_dialog(self):
-        if self.workspace_combo.currentText() != "3D 建模":
+        if self.workspace_combo.currentData() != "3D":
             self.cmdline.append("UCS：請先切換到 3D 建模工作區。")
             return
         items = ["世界 (WCS)", "視圖 (View)", "前視平面 (Front)", "右視平面 (Right)", "上視平面 (Top)"]
@@ -555,7 +637,7 @@ class MainWindow(QMainWindow):
             doc.name = name
         cv = CadCanvas(doc, self.settings, ui=self)
         if hasattr(self, "workspace_combo"):
-            cv.set_workspace_3d(self.workspace_combo.currentText() == "3D 建模")
+            cv.set_workspace_3d(self.workspace_combo.currentData() == "3D")
         cv.promptChanged.connect(lambda h, cv=cv: self.on_prompt(cv, h))
         cv.history.connect(lambda t, cv=cv: cv is self.canvas and self.cmdline.append(t))
         cv.coordChanged.connect(lambda x, y, cv=cv: cv is self.canvas and self.coord.setText(
@@ -1047,7 +1129,7 @@ class MainWindow(QMainWindow):
             self.canvas.selection = ents
             self.canvas.set_workspace_3d(True)
             if hasattr(self, "workspace_combo"):
-                self.workspace_combo.setCurrentText("3D 建模")
+                self.workspace_combo.setCurrentIndex(self.workspace_combo.findData("3D"))
             self.canvas.set_view_orientation("SEISO", fit=False)
             # External STL/STEP is normally a tessellated surface.  Opening it in 3D
             # wireframe exposes every triangle and makes a perfectly valid smooth model

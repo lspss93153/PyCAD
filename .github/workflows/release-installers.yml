@@ -1,0 +1,45 @@
+name: build installers
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-installer:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python runtime and packaging tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements_3d.txt pyinstaller
+          choco install nsis --yes --no-progress
+      - name: Build bundled Windows application
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --windowed --onedir --name PyCAD --collect-all cadquery --collect-all OCP --collect-all trimesh main.py
+          if (!(Test-Path 'dist/PyCAD/PyCAD.exe')) { throw 'PyCAD.exe missing' }
+      - name: Create EXE installer
+        shell: pwsh
+        run: |
+          & 'C:\Program Files (x86)\NSIS\makensis.exe' 'scripts\build_windows_installer.nsi'
+          if (!(Test-Path 'dist/PyCAD_v0.6.9.5_Windows_Setup.exe')) { throw 'Setup EXE missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PyCAD-v0.6.9.5-Windows-EXE-untested
+          path: dist/PyCAD_v0.6.9.5_Windows_Setup.exe
+  linux-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Debian package
+        run: bash scripts/build_deb.sh
+      - name: Verify package metadata
+        run: dpkg-deb --info dist/*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PyCAD-v0.6.9.5-Linux-DEB
+          path: dist/*.deb
