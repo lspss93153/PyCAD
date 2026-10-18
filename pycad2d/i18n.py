@@ -94,7 +94,8 @@ def tr(text):
     if suffix:
         text = text[:-3]
     if text in EN:
-        return EN[text] + (f' (&{re.search(r"\(&([A-Za-z])\)", original).group(1)})' if re.search(r'\(&([A-Za-z])\)', original) else '') + suffix
+        shortcut_match = re.search(r'\(&([A-Za-z])\)', original)
+        return EN[text] + (f' (&{shortcut_match.group(1)})' if shortcut_match else '') + suffix
     # Format-specific actions, eg. 匯出 STEP 3D...
     for lead, translation in (('匯出 ','Export '),('匯入 ','Import ')):
         if text.startswith(lead):
